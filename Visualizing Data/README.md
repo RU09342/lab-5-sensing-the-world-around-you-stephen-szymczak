@@ -1,19 +1,63 @@
 # Visualizing Data
-In the next lab, we will start looking into how to take action on the information your microprocessor is receiving, for the last part of this lab, we will focus on visualizing the data. We will focus on three main methods of visualization. For each of these methods, you need to pick between 1-3 processors based on the part. As with Milestone 1, you will need to talk in this README about why you picked the processors you did (for one part, it is going to be painfully obvious). Overall, you should aim to use all five processors by the end of this part of the lab, however _YOU DO NOT NEED TO USE ALL FIVE FOR EACH PART_.
+Taking data from sensors is a big step in the right direction for making a useful embedded device. However, if the end user can't see the data in a useful way, then it is all for naught. For this portion of the lab we explore and implement the visualization of data on the LCD screen of the FR6989.
 
-## RGB LED
-Hopefully by this point you are fairly comfortable with how to control an RGB LED. To ease into this lab, you should take your sensors and have them correlate to the color, brightness, blinking speed, etc. of an RGB LED. If for your resistive sensor you picked a thermistor, it might make sense to have the RGB change from a "Blue" color to a "Red" color as it heats up. For this, you should pick 3 processors to perform this on. You do not need to use all three sensors on each of the boards. Pick one sensor per board and work off of that.
+## Type of Data Being Acquired
+The data being acquired is 12-bit chunks being fed in from the ADC. Our choice for high reference voltage on the ADC is 2.5V, so the sensor is arbitrary as long as it's output range is between 0-2.5V.
+
+## Data Acquisition
+Data acquisition is identical to the sensors portion of this lab, but in short we use a 12 bit ADC (A1) on the 6989. This value is stored in a variable ADCin. ADCin in the last portion of the lab would have been split into two 8 bit chunks to send over UART. However, for the purposes of this lab, that portion of the code was gutted and replaced with code to convert the value in ADCin to hex characters (0x000-0xFFF) and then displayed on the LCD.
 
 ## LCD Display
-Now that you are getting sensor data and acting on it, why don't you actually try to display the information the user in actual numbers. Using the MSP430FR6989, convert the information from all three of your sensors to a human readable value on the on-board LCD. Fair warning, *DO NOT TRY TO REINVENT THE WHEEL*. Make sure you give the resource explorer a good looking through to see what TI is going to provide you.
+The meat of the code lies in our ```c void ConvertToLCD(); ``` and ```c void LCDsetup(); ``` functions. Both of these functions are reliant on the LCDDriver.h and LCDDriver.c files:
 
-## PC Visualization
-While UART is awesome for talking between processors, it also can be used to stream data back to your computer which you can use software to read. If you want to be adventurous (or if you have experiences in other languages like Python or Java) you can try to make your own visualization software for looking at the sensor data. Instead of that, you need to be able to collect and visualize data through MATLAB using the "Serial Toolbox". It is up to you to figure out how fancy you want your plots to be, but at a minimum, your processor needs to be able to communicate back to MATLAB and you need to be able to plot the data over time back on your laptop. Since this is all UART, I would expect you to do this for at least two processors.
+The code includes the LCDDriver file and declares our new functions:
+```c
+#include <LCDDriver.h>
 
-## Now its your turn
-For the finale of this lab, pick a processor and run at least two of these visualizations at the same time. You also should look at using multiple channels on the internal ADC, although this is not required.
+//functions to be used:
+void ADCSetup();
+void TimerA0setup();
+void LCDsetup();    //new function
+void ConvertToLCD();//new function
+```
+Within the LCD setup function we set the pins for the LCD Display, initialize the LCD segments, setup the LCD clock synchronization, clear the LCD memory, and turn the LCD screen on:
+```c
+void LCDsetup(void)
+{
+      PJSEL0      = BIT4 | BIT5;                               // Sets pins for LCD Display
+      LCDCPCTL0   = 0xFFFF;                                    // Initializes the LCD Segments
+      LCDCPCTL1   = 0xFC3F;                                    // Initializes the LCD Segments
+      LCDCPCTL2   = 0x0FFF;                                    // Initializes the LCD Segments
+      LCDCCTL0    = LCDDIV__1 | LCDPRE__16 | LCD4MUX | LCDLP;
+      LCDCVCTL    = VLCD_1 | VLCDREF_0 | LCDCPEN;
+      LCDCCPCTL   = LCDCPCLKSYNC;                              // Clock synchronization enabled
+      LCDCMEMCTL  = LCDCLRM;                                   // Clear LCD memory
+      LCDCCTL0   |= LCDON;
+}
+```
 
+Within the ADC to LCD visualization function we convert the raw binary to characters such that they can be processed by the LCDDriver files:
 
-## Deliverables
-For this part of the lab, you need to be able to organize your submissions based on the part of the lab it is fulfilling. If this means using a ton of folders, be my guest, but at the end of the day, I am going to be grading these as if I am someone coming to your repository for information. This whole part can be summarized in one large README which should be *HEAVILY* focused on how to actually implement and use your code.
-fff
+```c
+void ConvertToLCD(int input)
+{
+      iones = (input%10);             //gets ones place value
+      itens = ((input/10)%10);        //gets tens place value
+      ihundreds = ((input/100)%10);   //gets hundreds place value
+      ithousands = ((input/1000)%10); //gets thousands place value
+
+      showChar(iones + '0', 4);         //the following four lines display values on LCD.
+      showChar(itens + '0', 3);         //Worth noting that the + '0' are essential in properly setting the values as their proper       
+      showChar(ihundreds + '0', 2);     //character number for display
+      showChar(ithousands + '0', 1);
+}
+```
+
+Finally, in the main function, we use a polling loop to constantly update the LCD screen as values from the ADC change:
+
+```c
+while(1){   //loop forever
+        ConvertToLCD(ADCin);    // function that converts ADC to a decimal number and displays on LCD
+        __bis_SR_register(LPM0_bits + GIE);      //power saving.
+    }
+```
