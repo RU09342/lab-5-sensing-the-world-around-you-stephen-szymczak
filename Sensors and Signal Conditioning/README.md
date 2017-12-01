@@ -122,10 +122,11 @@ The most difficult part was choosing the appropriate R-value to give us the full
 
 
 The LM35 is a centigrade temperature sensor. This section of the was the easiest as the LM35 out is a voltage directly proportional to the temperature sensor. All that was required was to connect the Vout (pin 2) of the LM35DZ to the ADC input and provide a voltage V to pin one such that V is within 4 and 20 volts, and lastly ground to pin 3.  The ground was provided by the msp430 so that the LM35DZ and msp430 shared the same ground, and V was provided by a breadboard power supply so that we could get 5 volts. The breadboard power supply was used because all of the development boards, for example, the G2, do not supply a 5-volt GPIO header. To calculate the temperature the linear equation
+
 <img src="https://cdn.discordapp.com/attachments/283426680582832128/379022183642431488/unknown.png">
 
 This equation was used because the LM35DZ datasheet specifies that linear relationship.  To show correct functionality of ADC it was noted that relationship
+
 <img src="https://cdn.discordapp.com/attachments/283426680582832128/379022250499899403/unknown.png">
 
-ADD EXAMPLE WITH PICTURES (NEED TO GET LM35)
 In the end a feedback resistor of 1M ohm was used.
